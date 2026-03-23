@@ -82,7 +82,9 @@ The physically correct resolution is to make only one objective active at a time
   (OV weights = [0, 10])
 
 Stateflow implements this switching by changing MPC output weights at runtime 
-via the `y.wt` port of the MPC Controller block. The v ≥ 0 constraint is 
+via the `y.wt` port of the MPC Controller block. ACC 
+is by definition a forward-driving system; reverse gear is outside its 
+operating envelope and handled entirely by the driver. The v ≥ 0 constraint is 
 enforced at the plant level — physically correct, since it is a drivetrain 
 limitation rather than a control objective.
 
