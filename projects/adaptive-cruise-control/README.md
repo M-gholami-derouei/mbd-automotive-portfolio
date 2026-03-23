@@ -57,21 +57,34 @@ Hierarchical state machine managing three operating modes:
 
 ### Why MPC over PID?
 
-The ACC plant has:
-- **Input constraints**: F_traction ∈ [−3000, 4500] N
-- **State constraints**: v ≥ 0 (no reverse under ACC)
-- **Competing objectives**: speed tracking AND gap maintenance
+Within each operating mode, the controller must compute an optimal force 
+trajectory subject to physical limits. MPC handles this natively:
 
-MPC handles all of these natively through constrained optimization. A PID would require separate mode-switching logic with no optimality guarantee.
+- **Input constraints**: F_traction ∈ [−3000, 4500] N are enforced directly 
+  inside the QP optimizer — no external saturation or anti-windup logic needed
+- **Prediction**: a 5-second lookahead (Np=50 steps) allows anticipatory 
+  braking before a gap violation occurs — a PID only reacts to current error
+- **Optimality**: at each timestep MPC minimizes a cost function over the full 
+  prediction horizon, trading off tracking error against control effort — 
+  a PID has no such mechanism
 
 ### Why Mode Switching?
 
-With **one manipulated variable** (F_traction) and **two outputs** (v, d), simultaneous perfect tracking of both is mathematically impossible. The fundamental insight is:
+With **one manipulated variable** (F_traction) and **two outputs** (v, d), 
+simultaneous perfect tracking of both is mathematically impossible — this is 
+a fundamental underactuation problem, independent of controller choice.
 
-- When no lead vehicle exists → d is undefined → only track v_ref
-- When lead vehicle detected → safety dominates → only track d_ref, speed is secondary
+The physically correct resolution is to make only one objective active at a time:
 
-Stateflow implements this switching by changing MPC output weights at runtime via the `y.wt` port of the MPC Controller block.
+- When no lead vehicle is detected → gap is undefined → MPC tracks v_ref only 
+  (OV weights = [1, 0])
+- When lead vehicle is detected → safety dominates → MPC tracks d_ref only 
+  (OV weights = [0, 10])
+
+Stateflow implements this switching by changing MPC output weights at runtime 
+via the `y.wt` port of the MPC Controller block. The v ≥ 0 constraint is 
+enforced at the plant level — physically correct, since it is a drivetrain 
+limitation rather than a control objective.
 
 ### MPC Prediction Model
 
