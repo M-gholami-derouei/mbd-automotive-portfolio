@@ -288,10 +288,10 @@ A 5-phase velocity profile exercises all critical ACC behaviors:
 ## Results
 
 ### Speed Control Mode
-v_ego tracking a constant reference of 15 m/s from rest. Clean first-order response with no overshoot after weight tuning.
+v_ego tracking a step reference of 20 m/s from rest. Clean first-order response with no overshoot after weight tuning.
 
 ![Speed Control Result](images/speed_control_result.png)
-*Figure 2: F_traction (top) and v_ego (bottom) in Speed Control mode. v_ego settles exactly at v_ref = 15 m/s.*
+*Figure 2: F_traction (top) and v_ego (bottom) in Speed Control mode. v_ego settles exactly at v_ref = 20 m/s.*
 
 ---
 
@@ -304,7 +304,7 @@ Gap tracking with dynamic d_ref = v_ego · t_headway + d_min. The MPC maintains 
 ---
 
 ### Full System with Mode Switching
-Complete simulation showing Stateflow mode transitions driven by gap distance relative to radar detection range.
+Complete simulation showing Stateflow mode transitions driven by gap distance relative to radar detection range. d_max = 100m, v_ref = 80km/h
 
 ![Full System Result](images/full_system_result.png)
 *Figure 4: d_ref, d, v_ego (km/h), and mode signal. Mode switches between Following (2) and Speed Control (3) based on d vs d_max.*
