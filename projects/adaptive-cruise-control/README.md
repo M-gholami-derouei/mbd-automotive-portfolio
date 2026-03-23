@@ -90,8 +90,8 @@ limitation rather than a control objective.
 
 ### MPC Prediction Model
 
-The MPC requires a **linear** prediction model. The vehicle plant is 
-nonlinear due to the aerodynamic drag term v². It is linearized via 
+The MPC requires a **linear** prediction model. The vehicle plant is
+nonlinear due to the aerodynamic drag term v². It is linearized via
 first-order Taylor expansion around a chosen operating point.
 
 #### Nonlinear Plant Equation
@@ -106,45 +106,51 @@ $$\dot{v} = g(v, F) = \frac{1}{m}\left(F - C_{rr}mg\cos(\theta) - \frac{1}{2}C_D
 
 #### Choice of Operating Point
 
-The Taylor expansion produces a linear model valid in the **neighbourhood** 
-of the operating point (v_op, F_op, θ_op). For an ACC system the dominant 
-operating regime is **highway cruise** on a nominally flat road. The 
+The Taylor expansion produces a linear model valid in the **neighbourhood**
+of the operating point $(v_{op}, F_{op}, \theta_{op})$. For an ACC system the dominant
+operating regime is **highway cruise** on a nominally flat road. The
 operating point was chosen as:
 
 $$v_{op} = 60 \text{ km/h} = 16.67 \text{ m/s}, \quad \theta_{op} = 0$$
 
-The road grade θ is treated as a **measured disturbance** in the 
-full nonlinear plant — the VehiclePlant subsystem accepts θ as an 
-input at every timestep. However, for the MPC **prediction model**, 
-linearization is performed at θ_op = 0 since highway cruise on flat 
-road represents the dominant operating condition. Grade disturbances 
-are handled by the MPC's disturbance rejection capability rather than 
+The road grade $\theta$ is treated as a **measured disturbance** in the
+full nonlinear plant — the VehiclePlant subsystem accepts $\theta$ as an
+input at every timestep. However, for the MPC **prediction model**,
+linearization is performed at $\theta_{op} = 0$ since highway cruise on flat
+road represents the dominant operating condition. Grade disturbances
+are handled by the MPC's disturbance rejection capability rather than
 being explicitly modelled in the prediction model.
 
-The corresponding steady-state traction force at operating point:
+The corresponding steady-state traction force at the operating point:
 
 $$F_{op} = C_{rr}mg + \frac{1}{2}C_D \rho A_f v_{op}^2$$
 
+At this operating point, both vehicles cruise at $v_{op}$, the gap is
+constant, and all time derivatives are zero: $g(v_{op}, F_{op}, 0) = 0$.
+
 #### Taylor Linearization
 
-The first-order Taylor expansion of g(v, F) around (v_op, F_op, θ_op = 0):
+The first-order Taylor expansion of $g(v, F)$ around $(v_{op}, F_{op}, \theta_{op} = 0)$:
 
-$$\dot{v} \approx g(v_{op}, F_{op}, 0) + \frac{\partial g}{\partial v}\bigg|_{op}(v - v_{op}) + \frac{\partial g}{\partial F}\bigg|_{op}(F - F_{op})$$
+$$\dot{v} \approx \underbrace{g(v_{op}, F_{op}, 0)}_{= \, 0} + \frac{\partial g}{\partial v}\bigg|_{op}(v - v_{op}) + \frac{\partial g}{\partial F}\bigg|_{op}(F - F_{op})$$
 
-Since g(v_op, F_op, 0) = 0 at steady state, computing the partial 
-derivatives at θ_op = 0:
+Computing the partial derivatives at $\theta_{op} = 0$:
 
-$$\frac{\partial g}{\partial v}\bigg|_{op} = -\frac{C_D \rho A_f v_{op}}{m}$$
+$$\frac{\partial g}{\partial v}\bigg|_{op} = -\frac{C_D \rho A_f v_{op}}{m}, \qquad \frac{\partial g}{\partial F}\bigg|_{op} = \frac{1}{m}$$
 
-$$\frac{\partial g}{\partial F}\bigg|_{op} = \frac{1}{m}$$
+Defining **deviation variables** (perturbations from the operating point):
 
-This gives the linearized velocity dynamics:
+$$\Delta v = v - v_{op}, \qquad \Delta F = F - F_{op}, \qquad \Delta v_{lead} = v_{lead} - v_{op}$$
 
-$$\dot{v} = -\frac{C_D \rho A_f v_{op}}{m} \cdot v + \frac{1}{m} \cdot F$$
+the linearized dynamics become:
 
-The linearization approximates the nonlinear 
-drag term around v_op; the result is a linear model in v and F valid 
-in the neighbourhood of highway cruise conditions on flat road.
+$$\Delta\dot{v} = -\frac{C_D \rho A_f v_{op}}{m} \cdot \Delta v + \frac{1}{m} \cdot \Delta F$$
+
+**Note:** The constant terms — rolling resistance $C_{rr}mg$, the
+quadratic drag at the operating point $\frac{1}{2}C_D \rho A_f v_{op}^2$
+— are absorbed into $F_{op}$. They cancel exactly at the operating
+point, which is why $g(v_{op}, F_{op}, 0) = 0$. The linear model
+captures only how the system *deviates* from this equilibrium.
 
 #### Augmented State-Space Model
 
@@ -152,44 +158,77 @@ The gap dynamics are already linear and require no approximation:
 
 $$\dot{d} = v_{lead} - v_{ego}$$
 
-Combining both equations with state vector x = [v, d]ᵀ, manipulated 
-variable u = F_traction, and measured disturbance w = v_lead:
+Expressed in deviation variables (noting that $\Delta\dot{d} = \dot{d}$ since $\dot{d}_{op} = 0$):
 
-$$\dot{x} = Ax + Bu + Ew$$
+$$\Delta\dot{d} = \Delta v_{lead} - \Delta v$$
 
-$$A = \begin{bmatrix} 
--\frac{C_D \rho A_f v_{op}}{m} & 0 \\ 
--1 & 0 
-\end{bmatrix}, \quad 
-B = \begin{bmatrix} 
-\frac{1}{m} \\ 
-0 
-\end{bmatrix}, \quad 
-E = \begin{bmatrix} 
-0 \\ 
-1 
+Combining both equations with deviation state vector
+$\Delta x = [\Delta v, \, \Delta d]^T$, manipulated variable
+$\Delta u = \Delta F$, and measured disturbance
+$\Delta w = \Delta v_{lead}$:
+
+$$\Delta\dot{x} = A \, \Delta x + B \, \Delta u + E \, \Delta w$$
+
+$$A = \begin{bmatrix}
+-\frac{C_D \rho A_f v_{op}}{m} & 0 \\
+-1 & 0
+\end{bmatrix}, \quad
+B = \begin{bmatrix}
+\frac{1}{m} \\
+0
+\end{bmatrix}, \quad
+E = \begin{bmatrix}
+0 \\
+1
 \end{bmatrix}$$
 
-**States:** x = [v, d]ᵀ  
-**Manipulated variable:** u = F_traction  
-**Measured disturbance:** w = v_lead  
-**Outputs:** y = Cx = [v, d]ᵀ, where C = I₂
+**States:** $\Delta x = [\Delta v, \, \Delta d]^T$ (deviations from operating point)
+**Manipulated variable:** $\Delta u = \Delta F = F_{traction} - F_{op}$
+**Measured disturbance:** $\Delta w = \Delta v_{lead} = v_{lead} - v_{op}$
+**Outputs:** $\Delta y = C \, \Delta x = [\Delta v, \, \Delta d]^T$, where $C = I_2$
 
-**Note:** The road grade θ acts on the nonlinear plant directly but is 
-not included in the prediction model matrices. This is a deliberate 
-simplification — for the prediction model, θ_op = 0 is assumed. 
-The full nonlinear plant (VehiclePlant subsystem) uses the actual 
-θ signal at every timestep, so the closed-loop system responds 
-correctly to road grade even though the MPC prediction model does 
+#### Operating Point in the MPC Object
+
+The MPC Toolbox works in absolute coordinates internally but needs to
+know the operating point so it can convert between absolute signals
+(from Simulink) and the deviation variables used by the linear model.
+This is set via the **nominal values**:
+
+```matlab
+mpcobj.Model.Nominal.U = [F_op; v_op];   % [MV nominal; MD nominal]
+mpcobj.Model.Nominal.Y = [v_op; 0];      % [v nominal;  d nominal]
+```
+
+| Signal | Nominal value | Meaning |
+|--------|--------------|---------|
+| MV (F_traction) | $F_{op}$ | Force that holds $v_{op}$ against drag + rolling resistance |
+| MD (v_lead) | $v_{op}$ | Lead vehicle speed at equilibrium (both vehicles cruise together) |
+| OV₁ (v) | $v_{op}$ | Ego velocity at the operating point |
+| OV₂ (d) | 0 | Gap nominal is zero — the reference $d_{ref}$ is tracked in absolute coordinates |
+
+**What happens without nominal values:** If the nominals default to
+zero, the MPC interprets the raw Simulink signals as deviation
+variables. For example, it treats a measured $v_{lead} = 16.7$ m/s
+as $\Delta v_{lead} = 16.7$ m/s — a massive fictitious disturbance —
+rather than the correct $\Delta v_{lead} = v_{lead} - v_{op} \approx 0$.
+This corrupts the gap prediction and produces a persistent tracking
+offset that no amount of weight tuning can eliminate.
+
+**Note:** The road grade $\theta$ acts on the nonlinear plant directly but is
+not included in the prediction model matrices. This is a deliberate
+simplification — for the prediction model, $\theta_{op} = 0$ is assumed.
+The full nonlinear plant (VehiclePlant subsystem) uses the actual
+$\theta$ signal at every timestep, so the closed-loop system responds
+correctly to road grade even though the MPC prediction model does
 not explicitly account for it.
 
 #### Limitation
 
-The prediction model is most accurate near v_op = 60 km/h on flat 
-road. At speeds significantly above or below this point — particularly 
-during the 120 km/h phase or from standstill — and on steep grades, 
-the linearization introduces modelling error. A more robust approach 
-would use **gain scheduling** — multiple linear models at different 
+The prediction model is most accurate near $v_{op}$ = 60 km/h on flat
+road. At speeds significantly above or below this point — particularly
+during the 120 km/h phase or from standstill — and on steep grades,
+the linearization introduces modelling error. A more robust approach
+would use **gain scheduling** — multiple linear models at different
 operating points — which represents a natural extension of this work.
 
 ### MPC Horizon Justification
