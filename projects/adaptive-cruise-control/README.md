@@ -96,37 +96,43 @@ first-order Taylor expansion around a chosen operating point.
 
 #### Nonlinear Plant Equation
 
-From Newton's second law (flat road, θ = 0):
+From Newton's second law:
 
-$$m\dot{v} = F_{traction} - C_{rr}mg - \frac{1}{2}C_D \rho A_f v^2$$
+$$m\dot{v} = F_{traction} - C_{rr}mg\cos(\theta) - \frac{1}{2}C_D \rho A_f v^2 - mg\sin(\theta)$$
 
 Rewritten as:
 
-$$\dot{v} = g(v, F) = \frac{1}{m}\left(F - C_{rr}mg - \frac{1}{2}C_D \rho A_f v^2\right)$$
+$$\dot{v} = g(v, F) = \frac{1}{m}\left(F - C_{rr}mg\cos(\theta) - \frac{1}{2}C_D \rho A_f v^2 - mg\sin(\theta)\right)$$
 
 #### Choice of Operating Point
 
 The Taylor expansion produces a linear model valid in the **neighbourhood** 
-of the operating point (v_op, F_op). The model accuracy degrades as the 
-system moves further from this point.
+of the operating point (v_op, F_op, θ_op). For an ACC system the dominant 
+operating regime is **highway cruise** on a nominally flat road. The 
+operating point was chosen as:
 
-For an ACC system the dominant operating regime is **highway cruise** — 
-the vehicle spends most of its time between 40 and 120 km/h. The midpoint 
-of this range was chosen:
+$$v_{op} = 60 \text{ km/h} = 16.67 \text{ m/s}, \quad \theta_{op} = 0$$
 
-$$v_{op} = 60 \text{ km/h} = 16.67 \text{ m/s}$$
+The road grade θ is treated as a **measured disturbance** in the 
+full nonlinear plant — the VehiclePlant subsystem accepts θ as an 
+input at every timestep. However, for the MPC **prediction model**, 
+linearization is performed at θ_op = 0 since highway cruise on flat 
+road represents the dominant operating condition. Grade disturbances 
+are handled by the MPC's disturbance rejection capability rather than 
+being explicitly modelled in the prediction model.
 
-The corresponding steady-state traction force (where $\dot{v} = 0$):
+The corresponding steady-state traction force at operating point:
 
 $$F_{op} = C_{rr}mg + \frac{1}{2}C_D \rho A_f v_{op}^2$$
 
 #### Taylor Linearization
 
-The first-order Taylor expansion of g(v, F) around (v_op, F_op):
+The first-order Taylor expansion of g(v, F) around (v_op, F_op, θ_op = 0):
 
-$$\dot{v} \approx g(v_{op}, F_{op}) + \frac{\partial g}{\partial v}\bigg|_{op}(v - v_{op}) + \frac{\partial g}{\partial F}\bigg|_{op}(F - F_{op})$$
+$$\dot{v} \approx g(v_{op}, F_{op}, 0) + \frac{\partial g}{\partial v}\bigg|_{op}(v - v_{op}) + \frac{\partial g}{\partial F}\bigg|_{op}(F - F_{op})$$
 
-Since g(v_op, F_op) = 0 at steady state, computing the partial derivatives:
+Since g(v_op, F_op, 0) = 0 at steady state, computing the partial 
+derivatives at θ_op = 0:
 
 $$\frac{\partial g}{\partial v}\bigg|_{op} = -\frac{C_D \rho A_f v_{op}}{m}$$
 
@@ -137,9 +143,9 @@ This gives the linearized velocity dynamics:
 $$\dot{v} = -\frac{C_D \rho A_f v_{op}}{m} \cdot v + \frac{1}{m} \cdot F$$
 
 Note that this is expressed directly in **absolute variables** — not 
-perturbation variables. The linearization approximates the nonlinear drag 
-term around v_op; the result is a linear model in v and F that is valid 
-in the neighbourhood of highway cruise conditions.
+perturbation variables. The linearization approximates the nonlinear 
+drag term around v_op; the result is a linear model in v and F valid 
+in the neighbourhood of highway cruise conditions on flat road.
 
 #### Augmented State-Space Model
 
@@ -152,7 +158,29 @@ variable u = F_traction, and measured disturbance w = v_lead:
 
 $$\dot{x} = Ax + Bu + Ew$$
 
-$$A = \begin{bmatrix} -\frac{C_D \rho A_f v_{op}}{m} & 0 \\ -1 & 0
+$$A = \begin{bmatrix} -\frac{C_D \rho A_f v_{op}}{m} & 0 \\ -1 & 0 \end{bmatrix}, \quad B = \begin{bmatrix} \frac{1}{m} \\ 0 \end{bmatrix}, \quad E = \begin{bmatrix} 0 \\ 1 \end{bmatrix}$$
+
+**States:** x = [v, d]ᵀ  
+**Manipulated variable:** u = F_traction  
+**Measured disturbance:** w = v_lead  
+**Outputs:** y = Cx = [v, d]ᵀ, where C = I₂
+
+**Note:** The road grade θ acts on the nonlinear plant directly but is 
+not included in the prediction model matrices. This is a deliberate 
+simplification — for the prediction model, θ_op = 0 is assumed. 
+The full nonlinear plant (VehiclePlant subsystem) uses the actual 
+θ signal at every timestep, so the closed-loop system responds 
+correctly to road grade even though the MPC prediction model does 
+not explicitly account for it.
+
+#### Limitation
+
+The prediction model is most accurate near v_op = 60 km/h on flat 
+road. At speeds significantly above or below this point — particularly 
+during the 120 km/h phase or from standstill — and on steep grades, 
+the linearization introduces modelling error. A more robust approach 
+would use **gain scheduling** — multiple linear models at different 
+operating points — which represents a natural extension of this work.
 
 ### MPC Horizon Justification
 
