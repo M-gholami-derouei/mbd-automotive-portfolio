@@ -142,8 +142,7 @@ This gives the linearized velocity dynamics:
 
 $$\dot{v} = -\frac{C_D \rho A_f v_{op}}{m} \cdot v + \frac{1}{m} \cdot F$$
 
-Note that this is expressed directly in **absolute variables** — not 
-perturbation variables. The linearization approximates the nonlinear 
+The linearization approximates the nonlinear 
 drag term around v_op; the result is a linear model in v and F valid 
 in the neighbourhood of highway cruise conditions on flat road.
 
