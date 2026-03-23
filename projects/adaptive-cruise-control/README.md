@@ -77,9 +77,9 @@ a fundamental underactuation problem, independent of controller choice.
 The physically correct resolution is to make only one objective active at a time:
 
 - When no lead vehicle is detected → gap is undefined → MPC tracks v_ref only 
-  (OV weights = [1, 0])
+  (OV weights = [5, 0])
 - When lead vehicle is detected → safety dominates → MPC tracks d_ref only 
-  (OV weights = [0, 10])
+  (OV weights = [0, 20])
 
 Stateflow implements this switching by changing MPC output weights at runtime 
 via the `y.wt` port of the MPC Controller block. ACC 
