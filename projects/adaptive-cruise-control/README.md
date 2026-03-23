@@ -283,6 +283,9 @@ A 5-phase velocity profile exercises all critical ACC behaviors:
 | 4 | 150–210 s | 120 → 40 km/h | **Critical braking scenario** |
 | 5 | 210–300 s | 40 km/h | Gap stabilization |
 
+![Lead vehicle velocity profile](images/v_lead_profile.png)
+*Figure 2: The leading vehicle velocity profile.*
+
 ---
 
 ## Results
@@ -291,7 +294,7 @@ A 5-phase velocity profile exercises all critical ACC behaviors:
 v_ego tracking a step reference of 20 m/s from rest. Clean first-order response with no overshoot after weight tuning.
 
 ![Speed Control Result](images/speed_control_result.png)
-*Figure 2: F_traction (top) and v_ego (bottom) in Speed Control mode. v_ego settles exactly at v_ref = 20 m/s.*
+*Figure 3: F_traction (top) and v_ego (bottom) in Speed Control mode. v_ego settles exactly at v_ref = 20 m/s.*
 
 ---
 
@@ -299,7 +302,7 @@ v_ego tracking a step reference of 20 m/s from rest. Clean first-order response 
 Gap tracking with dynamic d_ref = v_ego · t_headway + d_min. The MPC maintains the following distance throughout all 5 phases of the lead vehicle scenario.
 
 ![Following Mode Result](images/following_mode_result.png)
-*Figure 3: d_ref (top) and d (bottom) in Following mode. Gap tracks reference closely and remains always positive.*
+*Figure 4: d_ref (top) and d (bottom) in Following mode. Gap tracks reference closely and remains always positive.*
 
 ---
 
@@ -307,7 +310,7 @@ Gap tracking with dynamic d_ref = v_ego · t_headway + d_min. The MPC maintains 
 Complete simulation showing Stateflow mode transitions driven by gap distance relative to radar detection range. d_max = 100m, v_ref = 80km/h
 
 ![Full System Result](images/full_system_result.png)
-*Figure 4: d_ref, d, v_ego (km/h), and mode signal. Mode switches between Following (2) and Speed Control (3) based on d vs d_max.*
+*Figure 5: d_ref, d, v_ego (km/h), and mode signal. Mode switches between Following (2) and Speed Control (3) based on d vs d_max.*
 
 ---
 
