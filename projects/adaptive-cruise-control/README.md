@@ -100,12 +100,58 @@ States: x = [v, d]ᵀ — Manipulated variable: F_traction — Measured disturba
 
 ### MPC Horizon Justification
 
-| Parameter | Value | Physical Justification |
-|-----------|-------|----------------------|
-| Sample time Ts | 0.1 s | Captures vehicle dynamics bandwidth (~1-2 Hz) |
-| Prediction horizon Np | 50 steps (5 s) | Covers worst-case emergency braking: t_stop = v_max/a_max = 33.3/8 ≈ 4.1 s |
-| Control horizon Nc | 25 steps (2.5 s) | Covers velocity-matching maneuver; halves QP decision variables |
+At each timestep, the MPC solves the following optimization problem:
 
+$$J = \sum_{k=1}^{N_p} \|y(k) - r(k)\|_W^2 + \sum_{k=0}^{N_c-1} \|\Delta u(k)\|_R^2$$
+
+The two horizons serve fundamentally different roles:
+
+- **Prediction horizon Np** defines the evaluation window — how far ahead 
+  the controller looks when computing the cost. The tracking error sum runs 
+  over all Np steps. A larger Np means more future consequences influence 
+  the current control decision.
+
+- **Control horizon Nc** defines the degrees of freedom — how many 
+  independent control increments {Δu(0), Δu(1), ..., Δu(Nc-1)} the 
+  optimizer actually computes. For k > Nc, the increment is frozen: 
+  Δu(k) = 0, meaning u(k) = u(Nc-1) = constant for the remaining 
+  Np - Nc steps. This significantly reduces the QP problem size without 
+  meaningfully sacrificing control quality, since later control moves 
+  have diminishing influence on the cost.
+
+#### Np = 50 steps (5 seconds)
+
+The prediction horizon must cover the worst-case safety-critical event: 
+the lead vehicle braking at maximum deceleration from highway speed.
+
+At v_max = 120 km/h = 33.3 m/s with a_max = 8 m/s²:
+
+$$t_{stop} = \frac{v_{max}}{a_{max}} = \frac{33.3}{8} \approx 4.1 \text{ s}$$
+
+The controller must be able to see this entire event within its prediction 
+window to plan a safe braking response. At Ts = 0.1 s this requires a 
+minimum of 41 steps. Np = 50 was chosen to add a safety margin of ~20% 
+above this minimum, giving a 5-second prediction window.
+
+#### Nc = 25 steps (2.5 seconds)
+
+The critical maneuver is not bringing the ego vehicle to a full stop, but 
+matching the lead vehicle's velocity — after which the gap stabilizes. 
+The velocity-matching time from the same emergency scenario:
+
+$$t_{match} \approx \frac{t_{stop}}{2} \approx 2.0 \text{ s} \approx 20 \text{ steps}$$
+
+Nc = 25 was chosen to cover this maneuver with margin. Beyond step 25, 
+the plant dynamics dominate and additional independent control moves 
+contribute negligible improvement to the cost while doubling the number 
+of QP decision variables. Setting Nc = Np/2 reduces the optimization 
+problem size by 50% with minimal loss of control quality.
+
+| Parameter | Value | Justification |
+|-----------|-------|---------------|
+| Ts | 0.1 s | Captures vehicle dynamics bandwidth (~1-2 Hz) |
+| Np | 50 steps (5 s) | Covers worst-case emergency braking event (4.1 s) + margin |
+| Nc | 25 steps (2.5 s) | Covers velocity-matching maneuver; halves QP decision variables |
 ### Dynamic Gap Reference
 
 The following distance reference is velocity-dependent:
