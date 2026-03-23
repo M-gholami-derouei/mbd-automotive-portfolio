@@ -90,13 +90,69 @@ limitation rather than a control objective.
 
 ### MPC Prediction Model
 
-The nonlinear plant is linearized via Taylor expansion around operating point v_op = 60 km/h:
+The MPC requires a **linear** prediction model. The vehicle plant is 
+nonlinear due to the aerodynamic drag term v². It is linearized via 
+first-order Taylor expansion around a chosen operating point.
 
-$$\dot{x} = Ax + Bu + Ev_{lead}$$
+#### Nonlinear Plant Equation
 
-$$A = \begin{bmatrix} -\frac{C_D \rho A_f v_{op}}{m} & 0 \\ -1 & 0 \end{bmatrix}, \quad B = \begin{bmatrix} \frac{1}{m} \\ 0 \end{bmatrix}, \quad E = \begin{bmatrix} 0 \\ 1 \end{bmatrix}$$
+From Newton's second law (flat road, θ = 0):
 
-States: x = [v, d]ᵀ — Manipulated variable: F_traction — Measured disturbance: v_lead
+$$m\dot{v} = F_{traction} - C_{rr}mg - \frac{1}{2}C_D \rho A_f v^2$$
+
+Rewritten as:
+
+$$\dot{v} = g(v, F) = \frac{1}{m}\left(F - C_{rr}mg - \frac{1}{2}C_D \rho A_f v^2\right)$$
+
+#### Choice of Operating Point
+
+The Taylor expansion produces a linear model valid in the **neighbourhood** 
+of the operating point (v_op, F_op). The model accuracy degrades as the 
+system moves further from this point.
+
+For an ACC system the dominant operating regime is **highway cruise** — 
+the vehicle spends most of its time between 40 and 120 km/h. The midpoint 
+of this range was chosen:
+
+$$v_{op} = 60 \text{ km/h} = 16.67 \text{ m/s}$$
+
+The corresponding steady-state traction force (where $\dot{v} = 0$):
+
+$$F_{op} = C_{rr}mg + \frac{1}{2}C_D \rho A_f v_{op}^2$$
+
+#### Taylor Linearization
+
+The first-order Taylor expansion of g(v, F) around (v_op, F_op):
+
+$$\dot{v} \approx g(v_{op}, F_{op}) + \frac{\partial g}{\partial v}\bigg|_{op}(v - v_{op}) + \frac{\partial g}{\partial F}\bigg|_{op}(F - F_{op})$$
+
+Since g(v_op, F_op) = 0 at steady state, computing the partial derivatives:
+
+$$\frac{\partial g}{\partial v}\bigg|_{op} = -\frac{C_D \rho A_f v_{op}}{m}$$
+
+$$\frac{\partial g}{\partial F}\bigg|_{op} = \frac{1}{m}$$
+
+This gives the linearized velocity dynamics:
+
+$$\dot{v} = -\frac{C_D \rho A_f v_{op}}{m} \cdot v + \frac{1}{m} \cdot F$$
+
+Note that this is expressed directly in **absolute variables** — not 
+perturbation variables. The linearization approximates the nonlinear drag 
+term around v_op; the result is a linear model in v and F that is valid 
+in the neighbourhood of highway cruise conditions.
+
+#### Augmented State-Space Model
+
+The gap dynamics are already linear and require no approximation:
+
+$$\dot{d} = v_{lead} - v_{ego}$$
+
+Combining both equations with state vector x = [v, d]ᵀ, manipulated 
+variable u = F_traction, and measured disturbance w = v_lead:
+
+$$\dot{x} = Ax + Bu + Ew$$
+
+$$A = \begin{bmatrix} -\frac{C_D \rho A_f v_{op}}{m} & 0 \\ -1 & 0
 
 ### MPC Horizon Justification
 
