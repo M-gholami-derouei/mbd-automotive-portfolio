@@ -390,10 +390,9 @@ adaptive-cruise-control/
 ├── scripts/
 │   ├── parameters.m               # Vehicle and MPC parameters
 │   └── MPC_linear_model.m         # State-space model and MPC object
-├── docs/
-│   └── MPC_Design_Parameters.pdf  # Detailed parameter justification report
 ├── images/
 │   ├── stateflow_chart.png
+│   ├── v_lead_profile.png
 │   ├── speed_control_result.png
 │   ├── following_mode_result.png
 │   └── full_system_result.png
