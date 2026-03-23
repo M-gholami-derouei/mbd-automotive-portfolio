@@ -341,7 +341,7 @@ v_ego tracking a step reference of 20 m/s from rest. Clean first-order response 
 Gap tracking with dynamic d_ref = v_ego · t_headway + d_min. The MPC maintains the following distance throughout all 5 phases of the lead vehicle scenario.
 
 ![Following Mode Result](images/following_mode_result.png)
-*Figure 4: d_ref (top) and d (bottom) in Following mode. Gap tracks reference closely and remains always positive.*
+*Figure 4: d_ref  and d  in Following mode. Gap tracks reference closely.*
 
 ---
 
