@@ -157,7 +157,18 @@ variable u = F_traction, and measured disturbance w = v_lead:
 
 $$\dot{x} = Ax + Bu + Ew$$
 
-$$A = \begin{bmatrix} -\frac{C_D \rho A_f v_{op}}{m} & 0 \\ -1 & 0 \end{bmatrix}, \quad B = \begin{bmatrix} \frac{1}{m} \\ 0 \end{bmatrix}, \quad E = \begin{bmatrix} 0 \\ 1 \end{bmatrix}$$
+$$A = \begin{bmatrix} 
+-\frac{C_D \rho A_f v_{op}}{m} & 0 \\ 
+-1 & 0 
+\end{bmatrix}, \quad 
+B = \begin{bmatrix} 
+\frac{1}{m} \\ 
+0 
+\end{bmatrix}, \quad 
+E = \begin{bmatrix} 
+0 \\ 
+1 
+\end{bmatrix}$$
 
 **States:** x = [v, d]ᵀ  
 **Manipulated variable:** u = F_traction  
