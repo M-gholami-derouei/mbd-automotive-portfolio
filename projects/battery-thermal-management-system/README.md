@@ -74,7 +74,7 @@ The result is fire or explosion — not a stalled vehicle. This is the fundament
 
 ### Safe Operating Window
 
-For lithium-ion NMC cells:
+For lithium-ion NMC (Nickel Manganese Cobalt Oxide) cells:
 
 | Zone | Temperature Range | Consequence |
 |------|------------------|-------------|
