@@ -112,12 +112,30 @@ $$\dot{Q}_{ent} = T_{cell} \cdot I \cdot \frac{\partial U_{OCV}}{\partial T_{cel
 Where:
 - $U_{OCV}$ is the open-circuit voltage (equilibrium electrochemical potential)
 - $\frac{\partial U_{OCV}}{\partial T_{cell}}$ is the **entropic coefficient** — a thermodynamic property of the cell
-- The sign depends on current direction — this term can be positive or negative
-- At moderate current ($I = 10$ A, $T_{cell} = 300$ K, $\frac{\partial U}{\partial T} \approx -0.0002$ V/K): $\dot{Q}_{ent} \approx -0.6$ W
+- For NMC cells, $\frac{\partial U_{OCV}}{\partial T_{cell}} < 0$ (typically $\approx -0.0002$ V/K)
+- **The sign of this term depends on current direction** — it is not always additive to $\dot{Q}_{ohm}$
 
-**Why this term cannot be neglected:**
+**Sign analysis by operating mode:**
 
-Compared to Joule heating at the same conditions ($\dot{Q}_{ohm} = I^2 R_{int} = 100 \times 0.05 = 5$ W), the entropic contribution is approximately **12%**. In a safety-critical thermal model, a systematic 12% underestimation of heat generation means the MPC predicts a lower $T_{cell}$ than reality at every timestep — this bias accumulates and could result in a delayed cooling response approaching the thermal runaway threshold.
+| Mode | $I$ convention | $\frac{\partial U}{\partial T}$ | $\dot{Q}_{ent}$ | Thermal effect |
+|------|---------------|----------------------------------|-----------------|----------------|
+| Discharge | $I > 0$ | $< 0$ | $< 0$ | Endothermic — reduces net heat generation |
+| Charge | $I < 0$ | $< 0$ | $> 0$ | Exothermic — adds to net heat generation |
+
+At moderate discharge ($I = 10$ A, $T_{cell} = 300$ K, $\frac{\partial U}{\partial T} \approx -0.0002$ V/K):
+$$\dot{Q}_{ent} \approx 300 \times 10 \times (-0.0002) = -0.6 \text{ W}$$
+
+Compared to Joule heating: $\dot{Q}_{ohm} = 10^2 \times 0.05 = 5$ W — the entropic contribution is approximately **12% of the dominant term**.
+
+**Why this term cannot be neglected — the correct argument:**
+
+The entropic term cannot be treated as negligible on the grounds of model **fidelity and completeness**, for two distinct reasons:
+
+1. **During charging**, $\dot{Q}_{ent} > 0$ and adds to Joule heating. Omitting it produces a systematic 12% underestimate of total heat generation — the MPC predicts lower $T_{cell}$ than reality, accumulating bias toward a delayed cooling response.
+
+2. **During discharge**, $\dot{Q}_{ent} < 0$ and partially offsets Joule heating. Omitting it produces a systematic overestimate of heat generation — the MPC is more conservative than required, commanding higher-than-necessary pump speeds. In a dual-use BTMS (charge and discharge), omitting the entropic term therefore introduces a sign-dependent model error that cannot be bounded without knowing the operating mode. Retaining it ensures the prediction model is accurate in both modes without mode-dependent correction.
+
+> **Note:** Neglecting $\dot{Q}_{ent}$ during discharge specifically is conservative (overestimates heating), not dangerous. However, a prediction model with a sign-dependent 12% error in the heat generation term is not an acceptable foundation for an MPC operating across both charge and discharge cycles. The term is retained for correctness.
 
 ---
 
@@ -171,16 +189,25 @@ The lumped capacitance assumption requires the **Biot number** to be small:
 
 $$Bi = \frac{h L_c}{k_{cell}} \ll 1$$
 
-For a cylindrical 18650 cell:
-- Characteristic length: $L_c = r/3 \approx 0.003$ m
+For a **cylindrical** 18650 cell, the characteristic length is the ratio of volume to surface area. For a long cylinder of radius $r$ and length $L$, the lateral surface dominates:
+
+$$L_c = \frac{V}{A_s} = \frac{\pi r^2 L}{2\pi r L} = \frac{r}{2}$$
+
+With $r = 9$ mm:
+
+$$L_c = \frac{0.009}{2} = 0.0045 \text{ m}$$
+
+> **Note:** The formula $L_c = r/3$ applies to a **sphere** ($V/A_s = \frac{4}{3}\pi r^3 / 4\pi r^2 = r/3$) and is incorrect for a cylinder. Using it here would underestimate the Biot number by 33%.
+
+With:
 - Cell thermal conductivity (radial): $k_{cell} \approx 1$ W/mK
 - Liquid cooling convective coefficient: $h \approx 500$ W/m²K
 
-$$Bi = \frac{500 \times 0.003}{1} = 1.5$$
+$$Bi = \frac{500 \times 0.0045}{1} = \mathbf{2.25}$$
 
-**$Bi > 1$ — the lumped assumption is not strictly valid for a single cell.** Spatial gradients exist, particularly in the radial direction. However, for the purposes of an MPC prediction model — which requires a low-order linear state-space representation — the lumped model is the standard engineering simplification used throughout BTMS literature. A distributed parameter model (PDE-based, implemented via Simscape finite element discretization) represents a natural extension of this work.
+**$Bi \gg 1$ — the lumped assumption is not valid for a single cell.** Meaningful radial temperature gradients exist. However, for the purposes of an MPC prediction model — which requires a low-order linear state-space representation — the lumped model is the standard engineering simplification used throughout BTMS literature. A distributed parameter model (PDE-based, implemented via Simscape finite element discretization) represents a natural extension of this work.
 
-This assumption is explicitly acknowledged in the model and its implications noted: the MPC prediction model will underestimate the peak temperature at the cell core, which should be compensated by conservative safety margins on the temperature constraint.
+This assumption is explicitly acknowledged in the model and its implications noted: the MPC prediction model will underestimate the peak temperature at the cell core, which must be compensated by **conservative safety margins on the temperature constraint**. With $Bi = 2.25$, the core-to-surface temperature difference is non-negligible, and the 60°C hard constraint applied to the surface sensor measurement must be interpreted as a surrogate for the core temperature — the actual safety margin to thermal runaway onset is smaller than the nominal 20°C margin suggests.
 
 ---
 
@@ -219,6 +246,8 @@ Where:
 - $\dot{m}_{cool} c_{p,cool}(T_{cool} - T_{cool,in})$: Advective heat removal — warm coolant leaving cold plate, cool coolant returning from chiller
 - $T_{cool,in}$: Chiller outlet temperature — treated as a **measured disturbance** from a sensor at the chiller outlet
 - $\dot{m}_{cool}$: Coolant mass flow rate — the **manipulated variable** commanded by the MPC via pump speed
+
+**Plug-flow assumption:** This formulation implicitly treats the cold plate as a **plug-flow volume with spatially uniform coolant temperature**, using the cold plate outlet temperature as representative of the entire coolant mass $m_{cool}$. In reality, a temperature gradient exists along the flow path — the coolant entering the cold plate is at $T_{cool,in}$ and exits at $T_{cool}$. The lumped model collapses this gradient into a single state. A consequence is that at low flow rates the residence time increases — the fluid heats up more per pass — which the energy balance captures correctly through the advective term, provided the outlet temperature is used as the representative state. This approximation is standard in low-order BTMS models and its accuracy improves as the cold plate thermal mass decreases relative to the flow-rate-driven advective term.
 
 **Note on pipe heat loss:** Heat exchange between coolant and ambient through the pipe wall was considered. The pipe surface area ($A_{pipe} = \pi D L \approx 0.03$ m²) is negligible compared to the cold plate effective area, and the pipe is thermally insulated. This term is linear and adds no complexity, but its contribution is less than 5% of cold plate heat transfer and is therefore neglected.
 
@@ -333,12 +362,15 @@ This equation determines the required $\dot{m}_{cool,op}$ given the thermal resi
 
 ### Gain Scheduling
 
-The prediction model is valid in a **neighbourhood** of the operating point. For large temperature excursions, a single linearization introduces significant model error. A **gain-scheduled** approach is implemented via Stateflow:
+The prediction model is valid in a **neighbourhood** of the operating point. For large temperature excursions, a single linearization introduces significant model error. A **gain-scheduled** approach is implemented via Stateflow, with **three linearization points** corresponding to the three thermal operating modes:
 
-- **Model 1:** Linearized around $T_{cell,op,1} = 25°C$ (cold regime)
-- **Model 2:** Linearized around $T_{cell,op,2} = 35°C$ (normal regime)
+| Model | Linearization point | Active in mode |
+|-------|--------------------|--------------------|
+| **Model 1** | $T_{cell,op,1} = 25°C$ | Normal (cold regime) |
+| **Model 2** | $T_{cell,op,2} = 35°C$ | Normal / Warning |
+| **Model 3** | $T_{cell,op,3} = 50°C$ | Warning (upper) / Critical |
 
-Stateflow switches between prediction models based on measured $T_{cell}$, identical in concept to the mode-switching architecture of the ACC project.
+Stateflow switches between prediction models based on measured $T_{cell}$, identical in concept to the mode-switching architecture of the ACC project. Three linearization points are required — not two — because the system spans a 30°C range across its three modes, and a single Warning/Critical model at 35°C would carry unacceptable linearization error at 50°C+ where the MPC prediction quality is most critical.
 
 ---
 
@@ -426,13 +458,18 @@ A hierarchical Stateflow state machine manages three operating modes:
 
 | Mode | Condition | MPC Objective | Action |
 |------|-----------|---------------|--------|
-| **Normal** | $T_{cell} \leq 40°C$ | Track $T_{cell,ref} = 35°C$ | Low pump speed |
-| **Warning** | $40°C < T_{cell} \leq 55°C$ | Aggressive cooling | High pump speed, switch to Model 2 |
-| **Critical** | $T_{cell} > 55°C$ | Emergency — maximize cooling | Max pump speed, alert |
+| **Normal** | $T_{cell} \leq 40°C$ | Track $T_{cell,ref} = 35°C$ | Low pump speed, Model 1/2 |
+| **Warning** | $40°C < T_{cell} \leq 55°C$ | Aggressive cooling | High pump speed, Model 2/3 |
+| **Critical** | $T_{cell} > 55°C$ | Emergency — maximize cooling | Max pump speed, Model 3, alert |
+
+**Note on threshold selection:** The mode-switching thresholds (40°C and 55°C) are set **below** the physical zone boundaries defined in the Safe Operating Window table (45°C and 60°C respectively). This is intentional — the thresholds provide a **5°C buffer** on each boundary, ensuring that:
+1. The MPC is not operating in Normal mode right up to the edge of the acceptable zone, leaving no room to react to load transients
+2. The switch to more aggressive control and the tighter linearization model (Model 3) occurs while the system still has thermal headroom — not after it has already entered the danger zone
+3. A sensor failure or measurement lag does not delay a mode transition until the physical limit is already exceeded
 
 Mode switching changes:
 - MPC output weights (prioritize $T_{cell}$ tracking vs energy efficiency)
-- Active linearization model (gain scheduling between Model 1 and Model 2)
+- Active linearization model (gain scheduling across Model 1, 2, 3)
 - Constraint tightening (reduced $T_{cell}$ upper bound in Warning mode to create buffer)
 
 ---
@@ -444,7 +481,7 @@ Mode switching changes:
 **Soft constraint:** $T_{cell} \leq 45°C$ with a slack variable — violations are penalized but permitted transiently during aggressive load transients.
 
 **Why the hard constraint is set at 60°C and not higher:** Thermal runaway onset temperature for NMC cells is typically reported in the range of $80°C$–$150°C$ depending on SoC and cell chemistry. The 60°C hard constraint provides a **20°C minimum safety margin** above the optimal window, accounting for:
-- Model uncertainty from lumped capacitance assumption
+- Model uncertainty from lumped capacitance assumption ($Bi = 2.25$ implies non-trivial core-to-surface temperature difference — the surface measurement used by the MPC underestimates the core temperature, so the effective margin at the core is smaller than 20°C)
 - Sensor measurement delay and noise
 - MPC prediction horizon limitations during extreme transients
 
@@ -454,14 +491,14 @@ Mode switching changes:
 
 | # | Assumption | Justification | Impact if violated |
 |---|-----------|--------------|-------------------|
-| 1 | Lumped capacitance for cell | $Bi \approx 1.5$ — borderline; standard in BTMS literature | MPC underestimates peak core temperature |
+| 1 | Lumped capacitance for cell | $Bi = 2.25$ — invalid strictly; standard in BTMS literature | MPC underestimates peak core temperature; compensated by conservative hard constraint at 60°C |
 | 2 | Radiation neglected | 1.25% of convective term at operating conditions | Negligible |
 | 3 | Pipe heat loss neglected | <5% of cold plate heat transfer; pipe insulated | Negligible |
 | 4 | Entropic coefficient $= f(SoC)$ only | Weak $T_{cell}$ dependence over 15°C–45°C range | ~Secondary error in $\dot{Q}_{ent}$ |
-| 5 | Entropic term retained (not neglected) | 12% of Joule heating — non-negligible in safety-critical model | 12% systematic underestimation of heat generation |
-| 6 | Lumped coolant model | Flow dynamics much faster than thermal dynamics | Overestimates coolant thermal mass |
+| 5 | Entropic term retained (not neglected) | 12% of Joule heating; sign-dependent error across charge/discharge without it | Charge: underestimates heat; Discharge: overestimates — bidirectional error unacceptable in dual-use model |
+| 6 | Plug-flow, uniform coolant temperature | Flow dynamics much faster than thermal dynamics; outlet temperature used as representative state | Overestimates coolant thermal mass at low flow; gradient along flow path collapsed to single state |
 | 7 | $T_{cool,in}$ as measured disturbance | Chiller dynamics modeled separately by refrigeration controller | Chiller transients appear as disturbance steps |
-| 8 | Linearization at single operating point per mode | Valid in neighbourhood of $T_{op}$ | Model error increases far from operating point |
+| 8 | Three linearizations, one per Stateflow mode | Valid in neighbourhood of each $T_{op}$; three points span full 25°C–55°C operating range | Model error increases far from each operating point |
 | 9 | $\dot{m}_{cool}$ as MV (not $V_{pump}$) | Linear actuator map in operating range | Actuator nonlinearity introduces small error |
 
 ---
