@@ -127,9 +127,7 @@ $$\dot{Q}_{ent} \approx 300 \times 10 \times (-0.0002) = -0.6 \text{ W}$$
 
 Compared to Joule heating: $\dot{Q}_{ohm} = 10^2 \times 0.05 = 5$ W — the entropic contribution is approximately **12% of the dominant term**.
 
-**Why this term cannot be neglected — the correct argument:**
-
-The entropic term cannot be treated as negligible on the grounds of model **fidelity and completeness**, for two distinct reasons:
+The entropic term cannot be treated as negligible, for two distinct reasons:
 
 1. **During charging**, $\dot{Q}_{ent} > 0$ and adds to Joule heating. Omitting it produces a systematic 12% underestimate of total heat generation — the MPC predicts lower $T_{cell}$ than reality, accumulating bias toward a delayed cooling response.
 
