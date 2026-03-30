@@ -190,7 +190,7 @@ $$\dot{Q}_{rad} = 0.9 \times 5.67\times10^{-8} \times 0.01 \times (333^4 - 293^4
 
 $$\dot{Q}_{conv} = hA(T_{cell} - T_{cool}) = 500 \times 0.01 \times 40 = 200 \text{ W}$$
 
-$$\frac{\dot{Q}_{rad}}{\dot{Q}_{conv}} = \frac{2.5}{200} = 1.25\%$$
+$$\frac{\dot{Q}_{rad}}{\dot{Q}_{conv}} = \frac{2.5}{200} = 0.0125$$
 
 **Radiation contributes 1.25% of convective heat removal under liquid cooling. Neglected.**
 
