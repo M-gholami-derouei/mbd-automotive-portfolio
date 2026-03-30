@@ -216,9 +216,7 @@ With $r = 9$ mm:
 
 $$L_c = \frac{0.009}{2} = 0.0045 \text{ m}$$
 
-> **Note:**
-> 1) The formula $L_c = r/3$ applies to a **sphere** ($V/A_s = \frac{4}{3}\pi r^3 / 4\pi r^2 = r/3$) and is incorrect for a cylinder. Using it here would underestimate the Biot number by 33%.
-> 2) “18650” denotes a cylindrical cell with ~18 mm diameter and ~65 mm length. The trailing “0” is part of the naming convention indicating a cylindrical form factor—it is not a physical dimension.
+> **Note:** “18650” denotes a cylindrical cell with ~18 mm diameter and ~65 mm length. The trailing “0” is part of the naming convention indicating a cylindrical form factor—it is not a physical dimension.
 
 With:
 - Cell thermal conductivity (radial): $k_{cell} \approx 1$ W/mK
