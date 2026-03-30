@@ -70,7 +70,7 @@ A lithium-ion battery cell is not a perfect energy converter. The difference bet
 4. The reaction generates more heat, further accelerating decomposition
 5. The process becomes self-reinforcing and **cannot be stopped once initiated**
 
-The result is fire or explosion — not a stalled vehicle. This is the fundamental engineering motivation for treating BTMS as a safety-critical control system, not a performance optimization.
+The result is fire or explosion — not a stalled vehicle. This is the fundamental engineering motivation for treating BTMS as a safety-critical control system, not merely a performance optimization.
 
 ### Safe Operating Window
 
@@ -129,7 +129,7 @@ Compared to Joule heating: $\dot{Q}_{ohm} = 10^2 \times 0.05 = 5$ W — the entr
 
 The entropic term cannot be treated as negligible, for two distinct reasons:
 
-1. **During charging**, $\dot{Q}_{ent} > 0$ and adds to Joule heating. Omitting it produces a systematic 12% underestimate of total heat generation — the MPC predicts lower $T_{cell}$ than reality, accumulating bias toward a delayed cooling response.
+1. **During charging**, $\dot{Q}_{ent} > 0$and adds to Joule heating. Omitting it produces a systematic 12% underestimate of total heat generation — the MPC predicts lower $T_{cell}$ than reality, accumulating bias toward a delayed cooling response.
 
 2. **During discharge**, $\dot{Q}_{ent} < 0$ and partially offsets Joule heating. Omitting it produces a systematic overestimate of heat generation — the MPC is more conservative than required, commanding higher-than-necessary pump speeds. In a dual-use BTMS (charge and discharge), omitting the entropic term therefore introduces a sign-dependent model error that cannot be bounded without knowing the operating mode. Retaining it ensures the prediction model is accurate in both modes without mode-dependent correction.
 
@@ -141,19 +141,40 @@ The entropic term cannot be treated as negligible, for two distinct reasons:
 
 ### Lumped Parameter Assumption
 
-The cell is modeled as a **uniform mass at a single temperature** $T_{cell}(t)$. This eliminates spatial temperature gradients, reducing the governing PDE:
+The cell is modeled as a **uniform mass at a single temperature** $T_{cell}(t)$. The starting point is the heat conduction PDE governing the interior of the cell:
 
 $$\rho c_p \frac{\partial T}{\partial t} = k\nabla^2 T + \dot{q}_{gen}$$
 
-to an ODE energy balance:
+This PDE governs heat diffusion **inside the cell body only**. The cooling does not appear in the PDE — it enters as a **boundary condition** at the cell surface, coupling the surface temperature to the coolant:
 
-$$m_{cell} c_{p,cell} \dot{T}_{cell} = \dot{Q}_{gen} - \dot{Q}_{cool}$$
+$$-k\frac{\partial T}{\partial n}\bigg|_{surface} = \frac{T_{surface} - T_{cool}}{R_{th}}$$
+
+The lumped capacitance assumption performs three operations simultaneously:
+
+**1. Eliminates the spatial operator.**
+Uniform temperature means $\nabla^2 T = 0$ everywhere inside the cell. The diffusion term vanishes.
+
+**2. Integrates the PDE over the cell volume.**
+Converting volumetric heat generation $\dot{q}_{gen}$ [W/m³] to total heat generation $\dot{Q}_{gen}$ [W]:
+
+$$\int_V \rho c_p \frac{\partial T}{\partial t} \, dV = \int_V \dot{q}_{gen} \, dV \quad \Rightarrow \quad m_{cell} c_{p,cell} \dot{T}_{cell} = \dot{Q}_{gen}$$
+
+**3. Absorbs the boundary condition into the ODE.**
+With uniform temperature, $T_{surface} = T_{cell}$. The surface boundary condition becomes a heat removal term in the energy balance:
+
+$$\dot{Q}_{cool} = \frac{T_{cell} - T_{cool}}{R_{th}}$$
+
+Combining all three steps yields the lumped ODE:
+
+$$\boxed{m_{cell} c_{p,cell} \dot{T}_{cell} = \dot{Q}_{gen} - \frac{T_{cell} - T_{cool}}{R_{th}}}$$
+
+> **Note:** The cooling term $\dot{Q}_{cool}$ does not originate from the PDE body — it originates from the surface boundary condition. This distinction is physically important: the PDE governs internal conduction; the boundary condition governs the thermal interface between the cell and its cooling circuit. The lumped assumption collapses both into a single ODE by assuming the internal resistance to heat flow is negligible relative to the external resistance at the surface — an assumption quantified by the Biot number (see [Lumped Capacitance Validity](#lumped-capacitance-validity)).
 
 ### Heat Removal Mechanisms
 
 Three mechanisms could remove heat from the cell surface:
 
-**Conduction** through TIM and cold plate:
+**Conduction** through TIM (Thermal Interface Materials) and cold plate:
 $$\dot{Q}_{cond} = \frac{T_{cell} - T_{cool}}{R_{th}}, \quad R_{th} = R_{TIM} + R_{cold\,plate}$$
 
 **Convection** to coolant (captured in $R_{th}$ above for the cold plate circuit)
