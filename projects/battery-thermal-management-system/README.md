@@ -157,7 +157,7 @@ Uniform temperature means $\nabla^2 T = 0$ everywhere inside the cell. The diffu
 **2. Integrates the PDE over the cell volume.**
 Converting volumetric heat generation $\dot{q}_{gen}$ [W/m³] to total heat generation $\dot{Q}_{gen}$ [W]:
 
-$$\int_V \rho c_p \frac{\partial T}{\partial t} \, dV = \int_V \dot{q}_{gen} \, dV \quad \Rightarrow \quad m_{cell} c_{p,cell} \dot{T}_{cell} = \dot{Q}_{gen}$$
+$$\int_V \rho c_p \frac{\partial T}{\partial t}  dV = \int_V \dot{q}_{gen} dV \quad \Rightarrow \quad m_{cell} c_{p,cell} \dot{T}_{cell} = \dot{Q}_{gen}$$
 
 **3. Absorbs the boundary condition into the ODE.**
 With uniform temperature, $T_{surface} = T_{cell}$. The surface boundary condition becomes a heat removal term in the energy balance:
