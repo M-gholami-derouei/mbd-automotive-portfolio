@@ -1,0 +1,20 @@
+% Vehicle parameters
+m    = 1500;
+g    = 9.81;
+rho  = 1.2;
+A_f    = 2.1;
+C_D  = 0.30;
+Crr  = 0.015;
+v_0  = 0;
+d_0  = 10;
+v_op = 60/3.6;
+F_op = Crr*m*g + 0.5*C_D*rho*A_f*v_op^2;
+Ts   = 0.1;
+Np   = 50;
+Nc   = 25;
+F_max   =  4500;
+F_brake = -3000;
+v_ref     = 100/3.6;
+t_headway = 2.0;
+d_min     = 5;
+d_max     = 150;
